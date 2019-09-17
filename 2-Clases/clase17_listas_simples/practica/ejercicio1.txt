@@ -1,0 +1,44 @@
+1. Implemente una función que le pida al usuario los datos necesarios para rellenar la estructura nodo_t
+(Abajo del ejercicio encontrara la estructura definida) y genere una lista simplemente enlazada, el fin del
+ingreso se da cuando la edad ingresada vale cero.
+
+typedef struct {
+    char nombre[NOMBRE_CANT]; //!< Nombre
+    char apellido[APELLIDO_CANT]; //!< Apellido
+    int edad;
+    char sexo[SEXO_CANT];
+} persona_t;
+
+struct nodo{
+    persona_t fullname;
+    char legajo[LEGAJO_CANT];
+    char especialidad[ESPECIALIDAD_CANT];
+    struct nodo * prox;
+};
+
+typedef struct nodo nodo_t;
+
+2. Se pide realizar una función, que busque en una lista un apellido
+pasado como parámetro y lo reemplace por otro.
+El prototipo de la función es el siguiente:
+
+int reemplaza_apellido(nodo_t * p, char * ap_viejo, char * ap_nuevo);
+
+Devuelve: la cantidad de apellidos que reemplazó. ( 0 si no encontró el
+apellido a buscar)
+
+Nota: Antes de modificar cada apellido que encuentre, debe imprimir los
+datos completos de ese alumno, luego reemplazar el apellido y por ultimo
+volver a imprimir los datos nuevos
+
+3. Desarrollar un programa, que pida al usuario los datos para llenar
+una lista simplemente enlazada de estructuras tipo “nodo_t”. Ademas,
+deberá recibir como argumentos del main dos apellidos, buscar en la lista
+la ocurrencia del primero y reemplazarlo por el segundo.
+
+Notas:
+● Debe checkear que se le pasen un mínimo de parámetros al main.
+● El apellido a reemplazar puede encontrarse mas de una vez en la
+lista, debe reemplazar todos los que existan.
+● Al finalizar el programa debe liberar la lista.
+● Utilice el archivo datos.dat para probar su programa.

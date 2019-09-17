@@ -1,0 +1,4 @@
+gcc -Wall -c -o func_temps.o func_temps.c
+gcc -Wall -c -o temps_array_f.o temps_array_f.c
+gcc -Wall -o t func_temps.o temps_array_f.o
+
