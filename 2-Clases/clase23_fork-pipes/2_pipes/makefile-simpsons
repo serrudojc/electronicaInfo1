@@ -1,0 +1,7 @@
+all: clean
+	gcc -Wall -o simpsons simpsons.c
+	gcc -Wall -o simpsons-sin-sleep simpsons-sin-sleep.c
+
+clean:
+	rm -f ./simpsons
+	rm -f ./simpsons-sin-sleep

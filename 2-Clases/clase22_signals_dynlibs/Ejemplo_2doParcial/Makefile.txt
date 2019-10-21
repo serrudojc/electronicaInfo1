@@ -1,0 +1,8 @@
+all:
+	gcc -Wall -c -g -o shared.o shared.c
+	gcc -Wall -c -g -o acceso.o acceso.c
+	gcc -Wall -c -g -o main.o main.c
+	gcc -Wall -o main main.o shared.o acceso.o
+
+clean:
+	rm -f *.o main
