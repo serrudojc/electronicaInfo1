@@ -1,0 +1,189 @@
+#include <sys/types.h>
+#include <fcntl.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <arpa/inet.h>
+#include <string.h>
+#include <strings.h>
+#include <unistd.h>
+#include <errno.h>
+#include "../lib/info1-sockets.h"
+
+#define LEN 1024
+typedef struct {
+	int pid;
+	int csock;
+	int pfds[2];
+} sockdata_t;
+
+struct nodo {
+	sockdata_t * data;
+	struct nodo * prox;
+};
+typedef struct nodo nodo_t;
+
+nodo_t * crear_nodo (sockdata_t auxdata);
+int insertar_nodo (nodo_t **p, sockdata_t auxdata);
+
+int main(int ac, char *av[]){
+//    	int res;						// resultado de algunas funciones
+    	int ssock;             			// descriptor del socket del servidor
+    	int csock;             			// descriptor del socket del cliente
+    	struct sockaddr_in cl_addr;		// direccion del cliente
+    	unsigned int len;				// tamanio de la direccion
+    	char buf[LEN];					// buffer de recepcion
+	nodo_t *p=NULL, *aux=NULL;					// puntero a la cabeza de la lista de hijos
+	int pfds[2], psender[2], psubs[2];
+	int pid;
+	int rd;
+	sockdata_t auxdata;
+	
+    // verifica los argumentos de la linea de comandos
+    	if(ac !=2){
+    		printf("invocar %s <port_donde_servir>\n", av[0]);
+		return -1;
+	}
+
+	// -- Inicia un servidor TCP y devuelve el socket asociado --
+	// -- Escucha en todas las direcciones en el puerto indicado --
+    	ssock = open_tcp_server(atoi(av[1]));
+	
+// -- Pipe para recibir los mensajes a enviar --
+	if (pipe(psender) == -1){
+               	perror("error en pipe");
+               	exit(1);
+        }
+// -- Pipe para recibir los nuevos clientes --
+	if (pipe(psubs) == -1){
+               	perror("error en pipe");
+               	exit(1);
+        }
+
+// Pasar los datos por el pipe y armar la lista adentro del proceso
+/*	if(!fork()){
+		
+		while(1){
+			fcntl( psubs[0], F_SETFL, fcntl(psubs[0], F_GETFL) | O_NONBLOCK);
+			if((rd=read(psubs[0], &auxdata, sizeof(sockdata_t)))>0){
+				printf("%d\n", rd);
+			}
+			aux=p;
+			while(aux){
+				write (aux->data->pfds[1],"Hola!", 6);
+				printf("%d\n", aux->data->pid);
+		printf("pfds1: %d\n", aux->data->pfds[1]);
+				aux=aux->prox;
+			}
+			sleep(2);
+		}
+
+	}
+*/  
+  	while(1){
+	    	// acepta la conexion entrante
+
+int flags = fcntl(ssock, F_GETFL, 0);
+fcntl(ssock, F_SETFL, flags | O_NONBLOCK);
+        	len = sizeof(cl_addr);
+	    	csock = accept(ssock, (struct sockaddr *)&cl_addr, &len);
+		if(csock>0){
+	// -- Obtengo el nombre del cliente --
+//	    	res = getpeername(csock, (struct sockaddr *)&cl_addr, &len);
+//	    	if(res < 0){
+//		    	perror(strerror(errno));
+//	        	return -1;
+//	    	}
+		if (pipe(pfds) == -1){
+                	perror("error en pipe");
+                	exit(1);
+        	}
+		// -- Informo quien se conectó --
+        	printf(" Conectado desde %s ...\n", inet_ntoa(cl_addr.sin_addr));
+
+		// -- Creo un proceso que lo atienda --
+		if(!(pid=fork())){
+        		while(1){
+            			//memset(buf, 0, sizeof(buf));		// limpia el buffer de recepcion (lo llena con ceros)
+            			//read(csock, buf, sizeof(buf));  	// lee el mensaje
+            			//printf("--- %s\n", buf);
+            			//if(!strcmp(buf,"chau!"))            // si recibe "chau!" cierra la conexion
+                		//	break;
+				int error = 0;
+				socklen_t len = sizeof (error);
+				getsockopt (csock, SOL_SOCKET, SO_ERROR, &error, &len);
+            			
+				if (error != 0) {
+    					/* socket has a non zero error status */
+			    		fprintf(stderr, "socket error: %s\n", strerror(error));
+					exit(0);
+				}
+		printf("pfds0h: %d\n", pfds[1]);
+				puts("Hijo");
+				if((rd=read(pfds[0], buf, LEN))){
+					write(csock, buf, LEN);   // envia mensaje
+				}
+				puts("Hijo");
+				sleep(1);
+        		}
+		}
+// -- Imprimo el PID para debug --
+		printf("PID: %d\n", pid);
+		printf("pfds1: %d\n", pfds[1]);
+// -- Cargo la estructura auxiliar y la envio al proceso sender --
+		auxdata.pid=pid;
+		auxdata.csock=csock;
+		auxdata.pfds[0]=pfds[0];
+		auxdata.pfds[1]=pfds[1];
+		if(insertar_nodo(&p, auxdata))
+			puts("No se pudo insertar");
+	//	write (psubs[1],&auxdata, sizeof(sockdata_t));
+		}
+		aux=p; 
+                        while(aux){
+                                write (aux->data->pfds[1],"Hola!", 6);
+                                printf("%d\n", aux->data->pid);
+                printf("pfds1: %d\n", aux->data->pfds[1]);
+                                aux=aux->prox;
+                        }
+                        sleep(2);
+    	}
+
+    // cierra el socket del servidor
+    close(ssock);
+	return 0;
+}
+int insertar_nodo (nodo_t **p, sockdata_t auxdata){
+	nodo_t *aux;
+
+	aux = crear_nodo(auxdata);
+	if(!aux)
+		return -1;
+	aux->prox=*p;
+	*p=aux;
+
+	return 0;
+}
+nodo_t * crear_nodo ( sockdata_t auxdata ){
+	nodo_t *p;
+
+// -- Pido memoria para el nodo y valido --
+	p = (nodo_t*) malloc (sizeof(nodo_t));
+	if(!p)
+		return NULL;
+// -- Pido memoria para los datos y valido --
+	p->data = (sockdata_t *) malloc (sizeof(sockdata_t));
+	if(!(p->data))
+		return NULL;
+// -- Cargo los datos --
+	p->data->pid = auxdata.pid;
+	p->data->csock = auxdata.csock;
+	p->data->pfds[0] = auxdata.pfds[0];
+	p->data->pfds[1] = auxdata.pfds[1];
+	p->prox=NULL;
+	
+	return p;
+}
+	
