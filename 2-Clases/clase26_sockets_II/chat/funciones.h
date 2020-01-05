@@ -14,9 +14,11 @@
 
 #define LEN 1024
 typedef struct {
+	char name[20];
         int pid;
         int csock;
-        int pfds[2];
+        int pfds_in[2];
+        int pfds_out[2];
 } sockdata_t;
 
 struct nodo {

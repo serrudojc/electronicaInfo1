@@ -3,16 +3,27 @@
 void enviar_mensajes(nodo_t *p){
         nodo_t *aux=p, *q;
         char buf[LEN];
-
+	char send[LEN];
+	
+		// -- Recorro la lista de hijos buscando mensajes --
                 while(p){
-                        if((read(p->data->csock, buf, LEN))>0){
-                                q=aux;
-                                while(q){
-                                        if(p->data->pid != q->data->pid)
-                                                write (q->data->pfds[1],buf, LEN);
-                                        q = q->prox;
-                                }
-                        }
+			// -- Si recibí un mensaje de este hijo, lo reenvío a los demas --
+                        if((read(p->data->pfds_out[0], buf, LEN))>0){
+				// -- Si es el comando de cambio de nombre no lo reenvío y seteo la estructura --
+                                if(!strncmp("name=", buf, 5)){
+					strcpy(p->data->name, buf+5);		
+				} else {
+					q=aux;
+					strcpy(send, p->data->name);
+					strcat(send, " dice: ");
+					strcat(send, buf);
+                                	while(q){
+                                        	if(p->data->pid != q->data->pid)
+                                                	write (q->data->pfds_in[1],send, LEN);
+                                        	q = q->prox;
+                                	}
+                        	}
+			}
                         p=p->prox;
                 }
         return;
@@ -40,10 +51,13 @@ nodo_t * crear_nodo ( sockdata_t auxdata ){
         if(!(p->data))
                 return NULL;
 // -- Cargo los datos --
+	strcpy(p->data->name, auxdata.name);
         p->data->pid = auxdata.pid;
         p->data->csock = auxdata.csock;
-        p->data->pfds[0] = auxdata.pfds[0];
-        p->data->pfds[1] = auxdata.pfds[1];
+        p->data->pfds_in[0] = auxdata.pfds_in[0];
+        p->data->pfds_in[1] = auxdata.pfds_in[1];
+        p->data->pfds_out[0] = auxdata.pfds_out[0];
+        p->data->pfds_out[1] = auxdata.pfds_out[1];
         p->prox=NULL;
 
         return p;
